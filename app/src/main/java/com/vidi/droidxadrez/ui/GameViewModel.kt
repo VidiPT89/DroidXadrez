@@ -17,10 +17,13 @@ import com.vidi.droidxadrez.engine.PieceType
 import com.vidi.droidxadrez.engine.Square
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class GameMode { ONE_V_ONE, BOT }
+
+private const val BOT_MIN_DELAY_MS = 550L
 
 class GameViewModel : ViewModel() {
     companion object {
@@ -166,7 +169,12 @@ class GameViewModel : ViewModel() {
         val snapshot = game.clone()
         val level = botLevel
         viewModelScope.launch {
+            val startedAt = System.currentTimeMillis()
             val move = withContext(Dispatchers.Default) { ChessAI.pickMove(snapshot, level) }
+            // So the bot always feels like it "thought" for a moment, even at Beginner/Easy
+            // where the search itself finishes almost instantly.
+            val elapsed = System.currentTimeMillis() - startedAt
+            delay(maxOf(0, BOT_MIN_DELAY_MS - elapsed))
             if (token != requestToken) return@launch
             thinking = false
             if (move != null) {

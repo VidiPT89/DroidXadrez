@@ -110,8 +110,8 @@ fun ChessBoardView(
 private fun AnimatedPieceView(piece: PieceInstance, cellSize: Dp, flipped: Boolean) {
     val displayR = if (flipped) 7 - piece.square.r else piece.square.r
     val displayC = if (flipped) 7 - piece.square.c else piece.square.c
-    val offsetX by animateDpAsState(targetValue = cellSize * displayC, animationSpec = tween(180), label = "pieceX")
-    val offsetY by animateDpAsState(targetValue = cellSize * displayR, animationSpec = tween(180), label = "pieceY")
+    val offsetX by animateDpAsState(targetValue = cellSize * displayC, animationSpec = tween(380), label = "pieceX")
+    val offsetY by animateDpAsState(targetValue = cellSize * displayR, animationSpec = tween(380), label = "pieceY")
 
     Box(
         modifier = Modifier
