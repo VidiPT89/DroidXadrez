@@ -31,6 +31,8 @@ class GameViewModel : ViewModel() {
     // even when the reference is unchanged.
     var game by mutableStateOf(ChessGame(), neverEqualPolicy())
         private set
+    var pieces by mutableStateOf<List<PieceInstance>>(emptyList())
+        private set
     var selected by mutableStateOf<Square?>(null)
         private set
     var legalTargets by mutableStateOf<List<Move>>(emptyList())
@@ -55,6 +57,7 @@ class GameViewModel : ViewModel() {
         this.botLevel = level
         requestToken = UUID.randomUUID()
         game = ChessGame()
+        pieces = PieceInstance.fresh(game.board)
         selected = null
         legalTargets = emptyList()
         lastMove = null
@@ -110,6 +113,7 @@ class GameViewModel : ViewModel() {
         legalTargets = emptyList()
         lastMove = move.from to move.to
         game = game // re-signal: same reference, but neverEqualPolicy notifies observers
+        pieces = applyMoveToPieces(pieces, move)
 
         when {
             record.status == "check" -> SoundEngine.playCheck()
@@ -125,6 +129,35 @@ class GameViewModel : ViewModel() {
         if (mode == GameMode.BOT && game.turn == BOT_COLOR) {
             requestBotMove()
         }
+    }
+
+    /** Returns an updated piece list, preserving identity so Compose animates the moved
+     * piece(s) sliding from their old square to the new one instead of popping in/out. */
+    private fun applyMoveToPieces(current: List<PieceInstance>, move: Move): List<PieceInstance> {
+        var updated = current
+
+        if (move.enPassant) {
+            val capR = if (move.piece.color == PieceColor.WHITE) move.to.r + 1 else move.to.r - 1
+            val capSquare = Square(capR, move.to.c)
+            updated = updated.filterNot { it.square == capSquare }
+        } else if (move.capture) {
+            updated = updated.filterNot { it.square == move.to }
+        }
+
+        updated = updated.map { p ->
+            if (p.square == move.from) p.copy(square = move.to, type = move.promotion ?: p.type) else p
+        }
+
+        move.castle?.let { castle ->
+            val rank = move.from.r
+            val rookFromC = if (castle == "K") 7 else 0
+            val rookToC = if (castle == "K") 5 else 3
+            val rookFrom = Square(rank, rookFromC)
+            val rookTo = Square(rank, rookToC)
+            updated = updated.map { p -> if (p.square == rookFrom) p.copy(square = rookTo) else p }
+        }
+
+        return updated
     }
 
     private fun requestBotMove() {
@@ -148,6 +181,20 @@ class GameViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+    fun undoLastTurn() {
+        if (mode != GameMode.BOT || thinking || game.history.isEmpty()) return
+        val removeCount = if (game.history.size % 2 == 0) 2 else 1
+        requestToken = UUID.randomUUID()
+        game.undoPlies(removeCount)
+        game = game
+        pieces = PieceInstance.fresh(game.board)
+        selected = null
+        legalTargets = emptyList()
+        lastMove = null
+        showResult = false
+        SoundEngine.playClick()
     }
 
     fun flipBoard() { flipped = !flipped }

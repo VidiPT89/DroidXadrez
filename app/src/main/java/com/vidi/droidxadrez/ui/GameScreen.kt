@@ -48,7 +48,7 @@ fun GameScreen(vm: GameViewModel, onBackToMenu: () -> Unit) {
         Spacer(Modifier.height(10.dp))
 
         ChessBoardView(
-            board = vm.game.board,
+            pieces = vm.pieces,
             selected = vm.selected,
             legalTargets = vm.legalTargets,
             lastMove = vm.lastMove,
@@ -66,6 +66,11 @@ fun GameScreen(vm: GameViewModel, onBackToMenu: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         HistoryCard(vm)
         Spacer(Modifier.height(14.dp))
+
+        if (vm.mode == GameMode.BOT) {
+            GhostButton(Loc.t("undoMove"), enabled = !vm.thinking && vm.game.history.isNotEmpty()) { vm.undoLastTurn() }
+            Spacer(Modifier.height(10.dp))
+        }
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GhostButton(Loc.t("flipBoard")) { vm.flipBoard() }
@@ -226,15 +231,15 @@ private fun ResultDialog(vm: GameViewModel, onRematch: () -> Unit, onMenu: () ->
 }
 
 @Composable
-fun GhostButton(label: String, onClick: () -> Unit) {
+fun GhostButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     Text(
         text = label,
         fontSize = 14.sp,
         fontWeight = FontWeight.SemiBold,
-        color = Theme.ink,
+        color = if (enabled) Theme.ink else Theme.inkDim,
         modifier = Modifier
             .border(1.dp, Theme.panelBorder, CircleShape)
-            .clickable { onClick() }
+            .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 16.dp, vertical = 10.dp),
     )
 }

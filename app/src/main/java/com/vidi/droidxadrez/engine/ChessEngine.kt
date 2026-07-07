@@ -470,4 +470,23 @@ class ChessGame {
         GameResult.DRAW_MATERIAL -> GameStatus(true, "drawMaterial", null)
         null -> if (isInCheck(turn)) GameStatus(false, "check", null) else GameStatus(false, "playing", null)
     }
+
+    /** Rebuilds state by replaying the history minus the last [n] plies. */
+    fun undoPlies(n: Int) {
+        val keep = history.subList(0, maxOf(0, history.size - n))
+        val fresh = ChessGame()
+        for (record in keep) {
+            fresh.makeMove(record.from, record.to, record.promotion)
+        }
+        board = fresh.board
+        turn = fresh.turn
+        castling = fresh.castling
+        enPassant = fresh.enPassant
+        halfmoveClock = fresh.halfmoveClock
+        fullmoveNumber = fresh.fullmoveNumber
+        history = fresh.history
+        positionCounts = fresh.positionCounts
+        result = fresh.result
+        winner = fresh.winner
+    }
 }

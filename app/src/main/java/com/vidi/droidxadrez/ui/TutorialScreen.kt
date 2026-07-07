@@ -173,7 +173,7 @@ fun TutorialScreen(onBackToMenu: () -> Unit) {
         Spacer(Modifier.height(16.dp))
 
         ChessBoardView(
-            board = game.board,
+            pieces = PieceInstance.fresh(game.board),
             selected = selected,
             legalTargets = legalTargets,
             onTap = ::tap,
