@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vidi.droidxadrez.Loc
+import com.vidi.droidxadrez.R
 import com.vidi.droidxadrez.Theme
 import com.vidi.droidxadrez.engine.GameResult
 import com.vidi.droidxadrez.engine.PieceColor
@@ -169,17 +171,16 @@ private fun PromotionDialog(vm: GameViewModel) {
         title = { Text(Loc.t("promoTitle"), color = Theme.ink) },
         text = {
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                val glyphs = mapOf(PieceType.QUEEN to "♛", PieceType.ROOK to "♜", PieceType.BISHOP to "♝", PieceType.KNIGHT to "♞")
-                for ((type, glyph) in glyphs) {
-                    Text(
-                        text = glyph,
-                        fontSize = 34.sp,
-                        color = if (color == PieceColor.WHITE) androidx.compose.ui.graphics.Color(0xFFFAF6E9) else androidx.compose.ui.graphics.Color(0xFF141008),
+                for (type in listOf(PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT)) {
+                    GradientPieceIcon(
+                        drawableId = pieceDrawable[type] ?: R.drawable.piece_q,
+                        brush = if (color == PieceColor.WHITE) Theme.whitePieceBrush else Theme.blackPieceBrush,
                         modifier = Modifier
+                            .size(58.dp)
                             .background(Theme.bgSoft, RoundedCornerShape(12.dp))
                             .border(1.dp, Theme.panelBorder, RoundedCornerShape(12.dp))
                             .clickable { vm.choosePromotion(type) }
-                            .padding(12.dp),
+                            .padding(10.dp),
                     )
                 }
             }

@@ -12,15 +12,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.vidi.droidxadrez.R
 import com.vidi.droidxadrez.Theme
 import com.vidi.droidxadrez.engine.Board
 import com.vidi.droidxadrez.engine.Move
@@ -28,9 +32,10 @@ import com.vidi.droidxadrez.engine.PieceColor
 import com.vidi.droidxadrez.engine.PieceType
 import com.vidi.droidxadrez.engine.Square
 
-private val PIECE_GLYPH: Map<PieceType, String> = mapOf(
-    PieceType.KING to "♚", PieceType.QUEEN to "♛", PieceType.ROOK to "♜",
-    PieceType.BISHOP to "♝", PieceType.KNIGHT to "♞", PieceType.PAWN to "♟",
+val pieceDrawable: Map<PieceType, Int> = mapOf(
+    PieceType.KING to R.drawable.piece_k, PieceType.QUEEN to R.drawable.piece_q,
+    PieceType.ROOK to R.drawable.piece_r, PieceType.BISHOP to R.drawable.piece_b,
+    PieceType.KNIGHT to R.drawable.piece_n, PieceType.PAWN to R.drawable.piece_p,
 )
 
 /** Reusable 8x8 board renderer, shared by the main game screen and the tutorial lessons. */
@@ -91,7 +96,7 @@ private fun SquareView(
     val isCheck = checkSquare == sq
     val target = legalTargets.firstOrNull { it.to == sq }
 
-    val bg = if (isLight) Theme.squareLight else Theme.squareDark
+    val bgBrush = if (isLight) Theme.lightSquareBrush else Theme.darkSquareBrush
     val borderColor = when {
         isSelected -> Theme.gold
         isCheck -> Theme.danger
@@ -101,17 +106,16 @@ private fun SquareView(
 
     Box(
         modifier = modifier
-            .background(bg)
+            .background(bgBrush)
             .then(if (borderColor != Color.Transparent) Modifier.border(3.dp, borderColor) else Modifier)
             .clickable { onTap(sq) },
         contentAlignment = Alignment.Center,
     ) {
         if (piece != null) {
-            Text(
-                text = PIECE_GLYPH[piece.type] ?: "",
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Normal,
-                color = if (piece.color == PieceColor.WHITE) Color(0xFFFAF6E9) else Color(0xFF141008),
+            GradientPieceIcon(
+                drawableId = pieceDrawable[piece.type] ?: R.drawable.piece_p,
+                brush = if (piece.color == PieceColor.WHITE) Theme.whitePieceBrush else Theme.blackPieceBrush,
+                modifier = Modifier.fillMaxSize().padding(6.dp),
             )
         }
         if (target != null) {
@@ -131,4 +135,20 @@ private fun SquareView(
             }
         }
     }
+}
+
+/** Renders a template (single-color) vector drawable filled with a gradient brush. */
+@Composable
+fun GradientPieceIcon(drawableId: Int, brush: Brush, modifier: Modifier = Modifier) {
+    val painter = painterResource(id = drawableId)
+    Box(
+        modifier = modifier
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawWithCache {
+                onDrawWithContent {
+                    with(painter) { draw(size) }
+                    drawRect(brush, blendMode = BlendMode.SrcIn)
+                }
+            }
+    )
 }
