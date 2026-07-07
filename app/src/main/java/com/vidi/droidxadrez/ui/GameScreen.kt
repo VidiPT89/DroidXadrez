@@ -68,7 +68,10 @@ fun GameScreen(vm: GameViewModel, onBackToMenu: () -> Unit) {
         Spacer(Modifier.height(14.dp))
 
         if (vm.mode == GameMode.BOT) {
-            GhostButton(Loc.t("undoMove"), enabled = !vm.thinking && vm.game.history.isNotEmpty()) { vm.undoLastTurn() }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GhostButton(Loc.t("undoMove"), enabled = !vm.thinking && vm.game.history.isNotEmpty()) { vm.undoLastTurn() }
+                GhostButton(Loc.t("redoMove"), enabled = !vm.thinking && vm.canRedo) { vm.redoLastTurn() }
+            }
             Spacer(Modifier.height(10.dp))
         }
 

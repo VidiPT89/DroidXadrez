@@ -13,6 +13,7 @@ import com.vidi.droidxadrez.engine.ChessGame
 import com.vidi.droidxadrez.engine.GameStatus
 import com.vidi.droidxadrez.engine.Move
 import com.vidi.droidxadrez.engine.PieceColor
+import com.vidi.droidxadrez.engine.MoveRecord
 import com.vidi.droidxadrez.engine.PieceType
 import com.vidi.droidxadrez.engine.Square
 import java.util.UUID
@@ -52,8 +53,11 @@ class GameViewModel : ViewModel() {
     var promotionCandidates by mutableStateOf<List<Move>?>(null)
         private set
     var showResult by mutableStateOf(false)
+    var canRedo by mutableStateOf(false)
+        private set
 
     private var requestToken: UUID = UUID.randomUUID()
+    private val redoStack = ArrayDeque<List<MoveRecord>>()
 
     fun newGame(mode: GameMode, level: BotDifficulty = BotDifficulty.MEDIUM) {
         this.mode = mode
@@ -67,6 +71,8 @@ class GameViewModel : ViewModel() {
         thinking = false
         promotionCandidates = null
         showResult = false
+        redoStack.clear()
+        canRedo = false
     }
 
     fun statusText(): GameStatus = game.gameStatusText()
@@ -115,6 +121,8 @@ class GameViewModel : ViewModel() {
         selected = null
         legalTargets = emptyList()
         lastMove = move.from to move.to
+        redoStack.clear()
+        canRedo = false
         game = game // re-signal: same reference, but neverEqualPolicy notifies observers
         pieces = applyMoveToPieces(pieces, move)
 
@@ -194,6 +202,8 @@ class GameViewModel : ViewModel() {
     fun undoLastTurn() {
         if (mode != GameMode.BOT || thinking || game.history.isEmpty()) return
         val removeCount = if (game.history.size % 2 == 0) 2 else 1
+        redoStack.addLast(game.history.takeLast(removeCount))
+        canRedo = true
         requestToken = UUID.randomUUID()
         game.undoPlies(removeCount)
         game = game
@@ -202,6 +212,19 @@ class GameViewModel : ViewModel() {
         legalTargets = emptyList()
         lastMove = null
         showResult = false
+        SoundEngine.playClick()
+    }
+
+    fun redoLastTurn() {
+        if (mode != GameMode.BOT || thinking) return
+        val batch = redoStack.removeLastOrNull() ?: return
+        for (record in batch) {
+            game.makeMove(record.from, record.to, record.promotion)
+        }
+        canRedo = redoStack.isNotEmpty()
+        game = game
+        pieces = PieceInstance.fresh(game.board)
+        batch.lastOrNull()?.let { lastMove = it.from to it.to }
         SoundEngine.playClick()
     }
 
