@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -141,9 +139,14 @@ private fun HistoryCard(vm: GameViewModel) {
             fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Theme.inkDim,
         )
         Spacer(Modifier.height(8.dp))
-        LazyColumn(modifier = Modifier.heightIn(max = 180.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 180.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
             val pairsCount = (history.size + 1) / 2
-            items(pairsCount) { i ->
+            for (i in 0 until pairsCount) {
                 val white = history[i * 2]
                 val black = history.getOrNull(i * 2 + 1)
                 Text(
