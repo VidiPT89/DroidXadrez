@@ -17,6 +17,7 @@ A versão Android nativa de [Xadrez para web](https://github.com/VidiPT89/Xadrez
 - 🔊 Efeitos sonoros sintetizados em tempo real via `AudioTrack` para lances, capturas, xeque e fim de jogo
 - 🎬 Splash de abertura animado com apresentação da app, que desaparece automaticamente
 - 🖼️ Tabuleiro totalmente adaptável, com destaque de lances legais, última jogada e xeque
+- 🌐 Modo Multijogador — joga online com um amigo através de uma sala com código de 6 caracteres ou link de convite, com chat em tempo real, indicador de presença do adversário e desistência
 
 ## 🛠️ Tech Stack
 
@@ -40,7 +41,12 @@ com.vidi.droidxadrez/
 │   ├── MainMenuScreen.kt         →  Menu principal e seletor de dificuldade
 │   ├── TutorialScreen.kt          →  5 lições interativas
 │   ├── HelpScreen.kt               →  Referência de regras e controlos
-│   └── SplashScreen.kt              →  Apresentação inicial
+│   ├── SplashScreen.kt              →  Apresentação inicial
+│   ├── MultiplayerViewModel.kt       →  Liga o MultiplayerService ao GameViewModel
+│   └── MultiplayerLobbyScreen.kt      →  Criar/entrar numa sala, partilhar convite
+│
+├── multiplayer
+│   └── MultiplayerService.kt   →  Salas, lances, chat e presença via Firestore
 │
 ├── Loc.kt          →  Strings PT/EN, preferência guardada em SharedPreferences
 ├── SoundEngine.kt   →  Sintetizador de efeitos sonoros em tempo real via AudioTrack
@@ -84,6 +90,16 @@ cd DroidXadrez
 ```
 
 Requires Android Studio (Koala or newer) and a device/emulator running Android 8.0 (API 26) or later.
+
+## 🌐 Multijogador
+
+O modo Multijogador usa [Firebase](https://firebase.google.com/) (Firestore + autenticação anónima) para sincronizar as jogadas e o chat entre dispositivos em tempo real — sem servidor próprio. Para ativar:
+
+1. Cria um projeto gratuito na [Firebase Console](https://console.firebase.google.com/), ativa **Authentication → Anonymous** e cria uma **Firestore Database** em modo produção.
+2. Publica as regras de segurança do Firestore.
+3. Regista uma app Android no projeto com o package `com.vidi.droidxadrez`, descarrega o `google-services.json` gerado e substitui o ficheiro placeholder em `app/`.
+
+Sem esta configuração, a app funciona normalmente em todos os outros modos — o cartão "Multijogador" fica apenas indisponível.
 
 ## 📝 Notes
 

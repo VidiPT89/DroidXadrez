@@ -42,6 +42,7 @@ fun MainMenuScreen(
     onStartBot: (BotDifficulty) -> Unit,
     onOpenTutorial: () -> Unit,
     onOpenHelp: () -> Unit,
+    onOpenMultiplayer: () -> Unit,
 ) {
     var showDifficulty by remember { mutableStateOf(false) }
 
@@ -63,13 +64,14 @@ fun MainMenuScreen(
             ModeCardData("🤖", "modeBot", "modeBotDesc") { showDifficulty = true },
             ModeCardData("🎓", "modeTutorial", "modeTutorialDesc") { onOpenTutorial() },
             ModeCardData("❓", "modeHelp", "modeHelpDesc") { onOpenHelp() },
+            ModeCardData("🌐", "modeMultiplayer", "modeMultiplayerDesc") { showDifficulty = false; onOpenMultiplayer() },
         )
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.heightIn(max = 320.dp).widthIn(max = 480.dp),
+            modifier = Modifier.heightIn(max = 480.dp).widthIn(max = 480.dp),
         ) {
             items(cards.size) { i ->
                 val card = cards[i]

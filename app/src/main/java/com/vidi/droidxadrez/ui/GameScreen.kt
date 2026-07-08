@@ -17,15 +17,23 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vidi.droidxadrez.Loc
@@ -34,9 +42,12 @@ import com.vidi.droidxadrez.Theme
 import com.vidi.droidxadrez.engine.GameResult
 import com.vidi.droidxadrez.engine.PieceColor
 import com.vidi.droidxadrez.engine.PieceType
+import com.vidi.droidxadrez.multiplayer.MultiplayerService
 
 @Composable
-fun GameScreen(vm: GameViewModel, onBackToMenu: () -> Unit) {
+fun GameScreen(vm: GameViewModel, mpVM: MultiplayerViewModel, onBackToMenu: () -> Unit) {
+    var showResignConfirm by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -67,6 +78,11 @@ fun GameScreen(vm: GameViewModel, onBackToMenu: () -> Unit) {
         HistoryCard(vm)
         Spacer(Modifier.height(14.dp))
 
+        if (vm.mode == GameMode.MULTIPLAYER) {
+            ChatCard(mpVM)
+            Spacer(Modifier.height(14.dp))
+        }
+
         if (vm.mode == GameMode.BOT) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 GhostButton(Loc.t("undoMove"), enabled = !vm.thinking && vm.game.history.isNotEmpty()) { vm.undoLastTurn() }
@@ -75,10 +91,20 @@ fun GameScreen(vm: GameViewModel, onBackToMenu: () -> Unit) {
             Spacer(Modifier.height(10.dp))
         }
 
+        if (vm.mode == GameMode.MULTIPLAYER) {
+            GhostButton(Loc.t("resignGame")) { showResignConfirm = true }
+            Spacer(Modifier.height(10.dp))
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GhostButton(Loc.t("flipBoard")) { vm.flipBoard() }
-            GhostButton(Loc.t("newGame")) { vm.newGame(vm.mode, vm.botLevel) }
-            GhostButton(Loc.t("backToMenu")) { onBackToMenu() }
+            if (vm.mode != GameMode.MULTIPLAYER) {
+                GhostButton(Loc.t("newGame")) { vm.newGame(vm.mode, vm.botLevel) }
+            }
+            GhostButton(Loc.t("backToMenu")) {
+                if (vm.mode == GameMode.MULTIPLAYER) mpVM.leave()
+                onBackToMenu()
+            }
         }
     }
 
@@ -89,6 +115,119 @@ fun GameScreen(vm: GameViewModel, onBackToMenu: () -> Unit) {
     if (vm.showResult) {
         ResultDialog(vm, onRematch = { vm.showResult = false; vm.newGame(vm.mode, vm.botLevel) }, onMenu = { vm.showResult = false; onBackToMenu() })
     }
+    if (showResignConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResignConfirm = false },
+            title = { Text(Loc.t("resignConfirmTitle"), color = Theme.ink) },
+            text = { Text(Loc.t("resignConfirmText"), color = Theme.inkDim) },
+            confirmButton = {
+                GhostButton(Loc.t("resignGame")) { showResignConfirm = false; MultiplayerService.resign() }
+            },
+            dismissButton = {
+                GhostButton(Loc.t("cancelBtn")) { showResignConfirm = false }
+            },
+            containerColor = Theme.panel,
+        )
+    }
+    val mpResult = vm.multiplayerResult
+    if (mpResult != null) {
+        MultiplayerResultDialog(mpResult, vm.networkColor, onMenu = {
+            vm.multiplayerResult = null
+            mpVM.leave()
+            onBackToMenu()
+        })
+    }
+}
+
+@Composable
+private fun ChatCard(mpVM: MultiplayerViewModel) {
+    var text by remember { mutableStateOf("") }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Theme.panel, RoundedCornerShape(16.dp))
+            .border(1.dp, Theme.panelBorder, RoundedCornerShape(16.dp))
+            .padding(16.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(Loc.t("chatTitle"), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Theme.inkDim)
+            Text(
+                text = if (mpVM.opponentOnline) Loc.t("mpOpponentOnline") else Loc.t("mpOpponentOffline"),
+                fontSize = 11.sp,
+                color = if (mpVM.opponentOnline) Color(0xFF4CAF50) else Theme.inkDim,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp).verticalScroll(rememberScrollState()),
+        ) {
+            for (msg in mpVM.chatMessages) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = if (msg.mine) Arrangement.End else Arrangement.Start,
+                ) {
+                    Text(
+                        text = msg.text,
+                        fontSize = 13.sp,
+                        color = Theme.ink,
+                        modifier = Modifier
+                            .background(Theme.bgSoft, RoundedCornerShape(10.dp))
+                            .border(1.dp, if (msg.mine) Theme.gold else Theme.panelBorder, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text(Loc.t("chatPlaceholder")) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Theme.bgSoft,
+                    unfocusedContainerColor = Theme.bgSoft,
+                    focusedTextColor = Theme.ink,
+                    unfocusedTextColor = Theme.ink,
+                ),
+                modifier = Modifier.weight(1f),
+            )
+            GhostButton("➤") {
+                if (text.isNotBlank()) {
+                    MultiplayerService.sendChat(text)
+                    text = ""
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MultiplayerResultDialog(result: String, myColor: PieceColor?, onMenu: () -> Unit) {
+    val resignedColor = if (result.startsWith("resign-")) result.takeLast(1) else null
+    val iWon = resignedColor != null && resignedColor != myColor?.code
+    AlertDialog(
+        onDismissRequest = {},
+        confirmButton = {},
+        title = {
+            Text(
+                (if (iWon) "🏆 " else "🏳️ ") + (if (iWon) Loc.t("resultOpponentResignedTitle") else Loc.t("resultYouResignedTitle")),
+                color = Theme.goldSoft,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column {
+                Text(if (iWon) Loc.t("resultOpponentResignedText") else Loc.t("resultYouResignedText"), color = Theme.inkDim)
+                Spacer(Modifier.height(16.dp))
+                GhostButton(Loc.t("backToMenu")) { onMenu() }
+            }
+        },
+        containerColor = Theme.panel,
+    )
 }
 
 @Composable
@@ -113,6 +252,8 @@ private fun StatusCard(vm: GameViewModel) {
     val note = when {
         vm.thinking -> Loc.t("thinking")
         status.key == "check" -> Loc.t("inCheck")
+        vm.mode == GameMode.MULTIPLAYER && !status.over && vm.networkColor != null && vm.game.turn != vm.networkColor ->
+            Loc.t("mpWaitingOpponent")
         else -> ""
     }
     Column(

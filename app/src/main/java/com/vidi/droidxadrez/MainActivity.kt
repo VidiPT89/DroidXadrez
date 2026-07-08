@@ -36,13 +36,16 @@ import com.vidi.droidxadrez.ui.GameScreen
 import com.vidi.droidxadrez.ui.GameViewModel
 import com.vidi.droidxadrez.ui.HelpScreen
 import com.vidi.droidxadrez.ui.MainMenuScreen
+import com.vidi.droidxadrez.ui.MultiplayerLobbyScreen
+import com.vidi.droidxadrez.ui.MultiplayerViewModel
 import com.vidi.droidxadrez.ui.SplashScreen
 import com.vidi.droidxadrez.ui.TutorialScreen
 
-private enum class AppScreen { MENU, GAME, TUTORIAL, HELP }
+private enum class AppScreen { MENU, GAME, TUTORIAL, HELP, MULTIPLAYER_LOBBY }
 
 class MainActivity : ComponentActivity() {
     private val vm: GameViewModel by viewModels()
+    private val mpVM: MultiplayerViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,10 +67,17 @@ class MainActivity : ComponentActivity() {
                                     onStartBot = { level -> vm.newGame(GameMode.BOT, level); screen = AppScreen.GAME },
                                     onOpenTutorial = { screen = AppScreen.TUTORIAL },
                                     onOpenHelp = { screen = AppScreen.HELP },
+                                    onOpenMultiplayer = { screen = AppScreen.MULTIPLAYER_LOBBY },
                                 )
-                                AppScreen.GAME -> GameScreen(vm = vm, onBackToMenu = { screen = AppScreen.MENU })
+                                AppScreen.GAME -> GameScreen(vm = vm, mpVM = mpVM, onBackToMenu = { screen = AppScreen.MENU })
                                 AppScreen.TUTORIAL -> TutorialScreen(onBackToMenu = { screen = AppScreen.MENU })
                                 AppScreen.HELP -> HelpScreen(onBackToMenu = { screen = AppScreen.MENU })
+                                AppScreen.MULTIPLAYER_LOBBY -> MultiplayerLobbyScreen(
+                                    mpVM = mpVM,
+                                    gameVM = vm,
+                                    onReady = { screen = AppScreen.GAME },
+                                    onBack = { screen = AppScreen.MENU },
+                                )
                             }
                         }
                         AppFooter()

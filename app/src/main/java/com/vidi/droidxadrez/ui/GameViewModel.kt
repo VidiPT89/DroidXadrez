@@ -22,7 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class GameMode { ONE_V_ONE, BOT }
+enum class GameMode { ONE_V_ONE, BOT, MULTIPLAYER }
 
 private const val BOT_MIN_DELAY_MS = 550L
 
@@ -55,13 +55,24 @@ class GameViewModel : ViewModel() {
     var showResult by mutableStateOf(false)
     var canRedo by mutableStateOf(false)
         private set
+    /** My assigned color in multiplayer mode; null for local modes. Gates whose turn it is to tap. */
+    var networkColor by mutableStateOf<PieceColor?>(null)
+    /** Set when the opponent resigns (or I do) — e.g. "resign-w". Not a rules outcome, so the
+     * engine can't detect it on its own; surfaced as separate state. */
+    var multiplayerResult by mutableStateOf<String?>(null)
+    /** Fires after a genuinely local move (mode == MULTIPLAYER only) so a wrapper view model can
+     * broadcast it — never fires for moves applied via applyRemoteMove or the bot. */
+    var onLocalMove: ((MoveRecord) -> Unit)? = null
 
     private var requestToken: UUID = UUID.randomUUID()
     private val redoStack = ArrayDeque<List<MoveRecord>>()
 
-    fun newGame(mode: GameMode, level: BotDifficulty = BotDifficulty.MEDIUM) {
+    fun newGame(mode: GameMode, level: BotDifficulty = BotDifficulty.MEDIUM, networkColor: PieceColor? = null) {
         this.mode = mode
         this.botLevel = level
+        this.networkColor = networkColor
+        this.multiplayerResult = null
+        onLocalMove = null
         requestToken = UUID.randomUUID()
         game = ChessGame()
         pieces = PieceInstance.fresh(game.board)
@@ -81,6 +92,8 @@ class GameViewModel : ViewModel() {
 
     fun tapSquare(square: Square) {
         if (thinking || game.isGameOver) return
+        val myColor = networkColor
+        if (mode == GameMode.MULTIPLAYER && myColor != null && game.turn != myColor) return
         val sel = selected
         if (sel != null) {
             val candidates = legalTargets.filter { it.to == square }
@@ -115,7 +128,7 @@ class GameViewModel : ViewModel() {
         finalize(chosen)
     }
 
-    private fun finalize(move: Move) {
+    private fun finalize(move: Move, isLocal: Boolean = true) {
         val wasCapture = move.capture
         val record = game.makeMove(move.from, move.to, move.promotion) ?: return
         selected = null
@@ -140,6 +153,20 @@ class GameViewModel : ViewModel() {
         if (mode == GameMode.BOT && game.turn == BOT_COLOR) {
             requestBotMove()
         }
+        if (isLocal && mode == GameMode.MULTIPLAYER) {
+            onLocalMove?.invoke(record)
+        }
+    }
+
+    /** Applies an opponent's move that arrived over the network. Looks the move up via
+     * legalMoves so castle/en-passant metadata is populated correctly for the piece-list
+     * animation, then reuses the exact same apply path as a local move. */
+    fun applyRemoteMove(from: Square, to: Square, promotion: PieceType?) {
+        val candidates = game.legalMoves(from)
+        val move = candidates.firstOrNull { it.to == to && it.promotion == promotion }
+            ?: candidates.firstOrNull { it.to == to }
+            ?: return
+        finalize(move, isLocal = false)
     }
 
     /** Returns an updated piece list, preserving identity so Compose animates the moved
@@ -186,15 +213,7 @@ class GameViewModel : ViewModel() {
             if (token != requestToken) return@launch
             thinking = false
             if (move != null) {
-                finalize(
-                    Move(
-                        from = move.from,
-                        to = move.to,
-                        piece = move.piece,
-                        capture = game.pieceAt(move.to.r, move.to.c) != null,
-                        promotion = move.promotion,
-                    )
-                )
+                finalize(move)
             }
         }
     }
