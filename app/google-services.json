@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "replace-me",
-    "storage_bucket": "replace-me.appspot.com"
+    "project_number": "10936409163",
+    "project_id": "xadrez-f264a",
+    "storage_bucket": "xadrez-f264a.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:10936409163:android:c3a8af1a69fd546f8a01ce",
         "android_client_info": {
           "package_name": "com.vidi.droidxadrez"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "REPLACE_ME"
+          "current_key": "AIzaSyCvUDg6lltmlPDdhrfEHVReJyvIgB_o3eg"
         }
       ],
       "services": {
