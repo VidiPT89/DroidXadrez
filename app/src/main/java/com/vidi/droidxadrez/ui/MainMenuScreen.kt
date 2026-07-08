@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.vidi.droidxadrez.Loc
 import com.vidi.droidxadrez.Theme
 import com.vidi.droidxadrez.engine.BotDifficulty
+import kotlinx.coroutines.delay
 
 private data class ModeCardData(val icon: String, val titleKey: String, val descKey: String, val action: () -> Unit)
 
@@ -45,11 +47,19 @@ fun MainMenuScreen(
     onOpenMultiplayer: () -> Unit,
 ) {
     var showDifficulty by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+
+    LaunchedEffect(showDifficulty) {
+        if (showDifficulty) {
+            delay(50) // let the panel's height enter layout before we scroll to it
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
