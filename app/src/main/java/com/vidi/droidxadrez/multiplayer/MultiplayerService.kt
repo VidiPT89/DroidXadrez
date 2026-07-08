@@ -20,9 +20,11 @@ sealed class MultiplayerError(message: String) : Exception(message) {
     object RoomFull : MultiplayerError("room-full")
     object RoomFinished : MultiplayerError("room-finished")
     object CreateFailed : MultiplayerError("create-failed")
+    object LobbyFull : MultiplayerError("lobby-full")
 }
 
 data class ChatMessage(val uid: String, val text: String, val mine: Boolean)
+data class QuickPlayResult(val code: String, val isHost: Boolean)
 
 /**
  * Networking layer for Multiplayer mode: rooms, moves, chat and presence over Firestore.
@@ -73,39 +75,18 @@ object MultiplayerService {
         return result.user!!.uid
     }
 
-    suspend fun createRoom(): String {
-        if (!configured) throw MultiplayerError.NotConfigured
-        val uid = ensureSignedIn()
-        repeat(6) {
-            val code = randomCode()
-            val ref = db().collection("rooms").document(code)
-            val existing = runCatching { ref.get().await() }.getOrNull()
-            if (existing == null || existing.exists()) return@repeat
-            val created = runCatching {
-                ref.set(
-                    mapOf(
-                        "hostUid" to uid, "hostColor" to "w", "guestUid" to null,
-                        "status" to "waiting", "result" to null,
-                        "createdAt" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp(),
-                        "hostPresence" to mapOf("online" to true, "lastSeen" to FieldValue.serverTimestamp()),
-                        "guestPresence" to mapOf("online" to false, "lastSeen" to FieldValue.serverTimestamp()),
-                    )
-                ).await()
-            }.isSuccess
-            if (created) return joinRoom(code)
-        }
-        throw MultiplayerError.CreateFailed
-    }
+    private val lobbyCodes = listOf("LOBBYA", "LOBBYB", "LOBBYC")
 
-    suspend fun joinRoom(code: String): String {
-        if (!configured) throw MultiplayerError.NotConfigured
-        val uid = ensureSignedIn()
-        myUid = uid
-        val ref = db().collection("rooms").document(code)
-        val snap = runCatching { ref.get().await() }.getOrNull()
-        if (snap == null || !snap.exists()) throw MultiplayerError.RoomNotFound
-        val data = snap.data ?: throw MultiplayerError.RoomNotFound
+    private fun freshRoomDoc(hostUid: String): Map<String, Any?> = mapOf(
+        "hostUid" to hostUid, "hostColor" to "w", "guestUid" to null,
+        "status" to "waiting", "result" to null,
+        "createdAt" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp(),
+        "hostPresence" to mapOf("online" to true, "lastSeen" to FieldValue.serverTimestamp()),
+        "guestPresence" to mapOf("online" to false, "lastSeen" to FieldValue.serverTimestamp()),
+    )
 
+    private suspend fun enterRoom(code: String, data: Map<String, Any?>): String {
+        val uid = myUid!!
         val hostUid = data["hostUid"] as? String
         val guestUid = data["guestUid"] as? String
         val hostColor = (data["hostColor"] as? String) ?: "w"
@@ -123,7 +104,7 @@ object MultiplayerService {
             guestUid == null -> {
                 if (status == "finished") throw MultiplayerError.RoomFinished
                 val joined = runCatching {
-                    ref.update(
+                    db().collection("rooms").document(code).update(
                         mapOf(
                             "guestUid" to uid, "status" to "active",
                             "guestPresence" to mapOf("online" to true, "lastSeen" to FieldValue.serverTimestamp()),
@@ -148,6 +129,63 @@ object MultiplayerService {
         attachChatListener()
         startHeartbeat()
         return code
+    }
+
+    suspend fun createRoom(): String {
+        if (!configured) throw MultiplayerError.NotConfigured
+        val uid = ensureSignedIn()
+        repeat(6) {
+            val code = randomCode()
+            val ref = db().collection("rooms").document(code)
+            val existing = runCatching { ref.get().await() }.getOrNull()
+            if (existing == null || existing.exists()) return@repeat
+            val created = runCatching { ref.set(freshRoomDoc(uid)).await() }.isSuccess
+            if (created) return joinRoom(code)
+        }
+        throw MultiplayerError.CreateFailed
+    }
+
+    suspend fun joinRoom(code: String): String {
+        if (!configured) throw MultiplayerError.NotConfigured
+        val uid = ensureSignedIn()
+        myUid = uid
+        val ref = db().collection("rooms").document(code)
+        val snap = runCatching { ref.get().await() }.getOrNull()
+        if (snap == null || !snap.exists()) throw MultiplayerError.RoomNotFound
+        val data = snap.data ?: throw MultiplayerError.RoomNotFound
+        return enterRoom(code, data)
+    }
+
+    /** Joins (or claims/recycles) the first available room in the fixed public lobby pool, so two
+     * people can play without coordinating a code: whoever arrives first waits as host, whoever
+     * arrives second joins immediately as guest and the game starts right away. */
+    suspend fun quickPlay(): QuickPlayResult {
+        if (!configured) throw MultiplayerError.NotConfigured
+        val uid = ensureSignedIn()
+        myUid = uid
+        for (code in lobbyCodes) {
+            val ref = db().collection("rooms").document(code)
+            val snap = runCatching { ref.get().await() }.getOrNull()
+            val data = if (snap != null && snap.exists()) snap.data else null
+
+            if (data == null || data["status"] as? String == "finished") {
+                val claimed = runCatching { ref.set(freshRoomDoc(uid)).await() }.isSuccess
+                if (!claimed) continue // someone else claimed/recycled this slot first — try the next one
+                enterRoom(code, freshRoomDoc(uid))
+                return QuickPlayResult(code, isHost = true)
+            }
+            if (data["hostUid"] as? String == uid || data["guestUid"] as? String == uid) {
+                enterRoom(code, data) // reconnecting to my own quick-play game
+                return QuickPlayResult(code, isHost = role == "host")
+            }
+            if (data["status"] as? String == "waiting" && data["guestUid"] == null) {
+                val joined = runCatching { enterRoom(code, data) }.isSuccess
+                if (!joined) continue
+                return QuickPlayResult(code, isHost = false)
+            }
+            // occupied by two other players — try the next pool slot
+        }
+        throw MultiplayerError.LobbyFull
     }
 
     private fun attachRoomListener() {

@@ -111,6 +111,16 @@ fun MultiplayerLobbyScreen(
                     )
                     Spacer(Modifier.height(10.dp))
                 }
+                GhostButton(Loc.t("mpQuickPlay"), enabled = MultiplayerService.configured) {
+                    mpVM.quickPlay(gameVM, onReady)
+                }
+                Text(
+                    Loc.t("mpQuickPlayDesc"),
+                    fontSize = 12.sp,
+                    color = Theme.inkDim,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     GhostButton(Loc.t("mpCreateRoom"), enabled = MultiplayerService.configured) {
                         mpVM.createRoom(gameVM, onReady)

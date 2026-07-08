@@ -71,6 +71,29 @@ class MultiplayerViewModel : ViewModel() {
         }
     }
 
+    fun quickPlay(gameVM: GameViewModel, onReady: () -> Unit) {
+        begin(gameVM)
+        errorMessage = null
+        waitingForOpponent = false
+        MultiplayerService.onOpponentJoined = {
+            waitingForOpponent = false
+            onReady()
+        }
+        viewModelScope.launch {
+            try {
+                val result = MultiplayerService.quickPlay()
+                gameVM.networkColor = MultiplayerService.myColor
+                if (result.isHost) {
+                    waitingForOpponent = true
+                } else {
+                    onReady()
+                }
+            } catch (e: Exception) {
+                errorMessage = message(e)
+            }
+        }
+    }
+
     fun leave() {
         MultiplayerService.leaveRoom()
         waitingForOpponent = false
@@ -80,6 +103,7 @@ class MultiplayerViewModel : ViewModel() {
         is MultiplayerError.RoomNotFound -> Loc.t("mpErrorNotFound")
         is MultiplayerError.RoomFull -> Loc.t("mpErrorFull")
         is MultiplayerError.RoomFinished -> Loc.t("mpErrorFinished")
+        is MultiplayerError.LobbyFull -> Loc.t("mpErrorLobbyFull")
         is MultiplayerError.NotConfigured -> Loc.t("mpNotConfigured")
         else -> Loc.t("mpErrorGeneric")
     }
