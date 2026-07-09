@@ -108,7 +108,7 @@ private fun ModeCard(icon: String, title: String, desc: String, onClick: () -> U
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 132.dp)
+            .height(150.dp)
             .background(Theme.panel, RoundedCornerShape(16.dp))
             .border(1.dp, Theme.panelBorder, RoundedCornerShape(16.dp))
             .clickable { onClick() }
