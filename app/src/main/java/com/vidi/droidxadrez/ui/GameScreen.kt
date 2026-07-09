@@ -375,13 +375,14 @@ private fun ResultDialog(vm: GameViewModel, onRematch: () -> Unit, onMenu: () ->
 }
 
 @Composable
-fun GhostButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+fun GhostButton(label: String, enabled: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Text(
         text = label,
         fontSize = 14.sp,
         fontWeight = FontWeight.SemiBold,
         color = if (enabled) Theme.ink else Theme.inkDim,
-        modifier = Modifier
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        modifier = modifier
             .border(1.dp, Theme.panelBorder, CircleShape)
             .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 16.dp, vertical = 10.dp),

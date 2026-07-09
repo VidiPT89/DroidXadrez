@@ -43,6 +43,7 @@ fun MultiplayerLobbyScreen(
 ) {
     var step by remember { mutableStateOf(LobbyStep.CHOICE) }
     var joinCode by remember { mutableStateOf("") }
+    var quickPlayWaiting by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Column(
@@ -60,19 +61,23 @@ fun MultiplayerLobbyScreen(
             mpVM.waitingForOpponent -> {
                 Text(Loc.t("mpWaitingTitle"), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Theme.ink)
                 Spacer(Modifier.height(10.dp))
-                MultiplayerService.roomCode?.let { code ->
-                    Text(code, fontSize = 34.sp, fontFamily = FontFamily.Monospace, letterSpacing = 6.sp, color = Theme.goldSoft)
-                    Spacer(Modifier.height(14.dp))
-                    GhostButton(Loc.t("mpShareLink")) {
-                        val url = "https://vidipt89.github.io/Xadrez/?room=$code"
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, "${Loc.t("mpShareText")} $url")
+                // Only a deliberately-created room is worth showing/sharing a code for — Quick
+                // Play's whole point is that no code is needed, so keep that wait screen plain.
+                if (!quickPlayWaiting) {
+                    MultiplayerService.roomCode?.let { code ->
+                        Text(code, fontSize = 34.sp, fontFamily = FontFamily.Monospace, letterSpacing = 6.sp, color = Theme.goldSoft)
+                        Spacer(Modifier.height(14.dp))
+                        GhostButton(Loc.t("mpShareLink")) {
+                            val url = "https://vidipt89.github.io/Xadrez/?room=$code"
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "${Loc.t("mpShareText")} $url")
+                            }
+                            context.startActivity(Intent.createChooser(send, null))
                         }
-                        context.startActivity(Intent.createChooser(send, null))
                     }
+                    Spacer(Modifier.height(10.dp))
                 }
-                Spacer(Modifier.height(10.dp))
                 GhostButton(Loc.t("cancelBtn")) { mpVM.leave(); step = LobbyStep.CHOICE }
             }
             step == LobbyStep.JOIN -> {
@@ -94,11 +99,11 @@ fun MultiplayerLobbyScreen(
                     modifier = Modifier.widthIn(max = 220.dp),
                 )
                 Spacer(Modifier.height(14.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GhostButton(Loc.t("mpJoin"), enabled = joinCode.length == 6) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    GhostButton(Loc.t("mpJoin"), enabled = joinCode.length == 6, modifier = Modifier.weight(1f)) {
                         mpVM.joinRoom(joinCode, gameVM, onReady)
                     }
-                    GhostButton(Loc.t("cancelBtn")) { step = LobbyStep.CHOICE }
+                    GhostButton(Loc.t("cancelBtn"), modifier = Modifier.weight(1f)) { step = LobbyStep.CHOICE }
                 }
             }
             else -> {
@@ -111,7 +116,8 @@ fun MultiplayerLobbyScreen(
                     )
                     Spacer(Modifier.height(10.dp))
                 }
-                GhostButton(Loc.t("mpQuickPlay"), enabled = MultiplayerService.configured) {
+                GhostButton(Loc.t("mpQuickPlay"), enabled = MultiplayerService.configured, modifier = Modifier.fillMaxWidth()) {
+                    quickPlayWaiting = true
                     mpVM.quickPlay(gameVM, onReady)
                 }
                 Text(
@@ -121,11 +127,12 @@ fun MultiplayerLobbyScreen(
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GhostButton(Loc.t("mpCreateRoom"), enabled = MultiplayerService.configured) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    GhostButton(Loc.t("mpCreateRoom"), enabled = MultiplayerService.configured, modifier = Modifier.weight(1f)) {
+                        quickPlayWaiting = false
                         mpVM.createRoom(gameVM, onReady)
                     }
-                    GhostButton(Loc.t("mpJoinRoom"), enabled = MultiplayerService.configured) {
+                    GhostButton(Loc.t("mpJoinRoom"), enabled = MultiplayerService.configured, modifier = Modifier.weight(1f)) {
                         joinCode = ""
                         step = LobbyStep.JOIN
                     }
