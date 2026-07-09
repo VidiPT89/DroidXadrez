@@ -4,9 +4,11 @@ import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -46,6 +48,7 @@ fun MultiplayerLobbyScreen(
     var quickPlayWaiting by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
+    Box(modifier = Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -146,5 +149,6 @@ fun MultiplayerLobbyScreen(
             Spacer(Modifier.height(10.dp))
             Text(error, fontSize = 13.sp, color = Theme.danger, textAlign = TextAlign.Center)
         }
+    }
     }
 }
