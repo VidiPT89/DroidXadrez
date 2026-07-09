@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -58,7 +60,7 @@ class MainActivity : ComponentActivity() {
                 var showSplash by remember { mutableStateOf(true) }
 
                 Box(modifier = Modifier.fillMaxSize().background(Theme.bg)) {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
                         AppHeader()
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             when (screen) {

@@ -183,7 +183,13 @@ object MultiplayerService {
                 if (!joined) continue
                 return QuickPlayResult(code, isHost = false)
             }
-            // occupied by two other players — try the next pool slot
+            // Occupied by two other players — try reclaiming it in case it's actually an
+            // abandoned game (both sides have been offline a while). The security rules are
+            // the real arbiter: this write only succeeds if both presences are genuinely stale.
+            val reclaimed = runCatching { ref.set(freshRoomDoc(uid)).await() }.isSuccess
+            if (!reclaimed) continue // still genuinely occupied — try the next pool slot
+            enterRoom(code, freshRoomDoc(uid))
+            return QuickPlayResult(code, isHost = true)
         }
         throw MultiplayerError.LobbyFull
     }
