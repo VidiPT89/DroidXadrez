@@ -101,6 +101,7 @@ private fun ModeCard(icon: String, title: String, desc: String, onClick: () -> U
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .fillMaxWidth()
             .background(Theme.panel, RoundedCornerShape(16.dp))
             .border(1.dp, Theme.panelBorder, RoundedCornerShape(16.dp))
             .clickable { onClick() }
