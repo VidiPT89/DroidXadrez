@@ -34,6 +34,8 @@ object Theme {
 
     val whitePieceBrush = Brush.verticalGradient(listOf(Color(0xFFFDF9EE), Color(0xFFE9C96A)))
     val blackPieceBrush = Brush.verticalGradient(listOf(Color(0xFF3A3020), Color(0xFF0D0B06)))
+    val whitePieceOutline = Color(0xFF2A2213)
+    val blackPieceOutline = Color(0xFF4A3A22)
     val lightSquareBrush = Brush.linearGradient(listOf(squareLight, squareLight2))
     val darkSquareBrush = Brush.linearGradient(listOf(squareDark, squareDark2))
 }

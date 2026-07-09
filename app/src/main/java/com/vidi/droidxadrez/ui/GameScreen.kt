@@ -324,6 +324,7 @@ private fun PromotionDialog(vm: GameViewModel) {
                     GradientPieceIcon(
                         drawableId = pieceDrawable[type] ?: R.drawable.piece_q,
                         brush = if (color == PieceColor.WHITE) Theme.whitePieceBrush else Theme.blackPieceBrush,
+                        outlineColor = if (color == PieceColor.WHITE) Theme.whitePieceOutline else Theme.blackPieceOutline,
                         modifier = Modifier
                             .size(58.dp)
                             .background(Theme.bgSoft, RoundedCornerShape(12.dp))

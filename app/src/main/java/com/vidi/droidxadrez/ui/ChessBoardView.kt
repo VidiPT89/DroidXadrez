@@ -23,10 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -122,6 +124,7 @@ private fun AnimatedPieceView(piece: PieceInstance, cellSize: Dp, flipped: Boole
         GradientPieceIcon(
             drawableId = pieceDrawable[piece.type] ?: R.drawable.piece_p,
             brush = if (piece.color == PieceColor.WHITE) Theme.whitePieceBrush else Theme.blackPieceBrush,
+            outlineColor = if (piece.color == PieceColor.WHITE) Theme.whitePieceOutline else Theme.blackPieceOutline,
             modifier = Modifier.fillMaxSize().padding(6.dp),
         )
     }
@@ -179,9 +182,21 @@ private fun SquareBackground(
     }
 }
 
-/** Renders a template (single-color) vector drawable filled with a gradient brush. */
+/** Renders a template (single-color) vector drawable filled with a gradient brush.
+ * An optional [outlineColor] draws a slightly oversized silhouette behind the fill, since a
+ * cream/gold piece otherwise loses all definition against the light squares' near-identical tone. */
 @Composable
-fun GradientPieceIcon(drawableId: Int, brush: Brush, modifier: Modifier = Modifier) {
+fun GradientPieceIcon(drawableId: Int, brush: Brush, modifier: Modifier = Modifier, outlineColor: Color? = null) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        if (outlineColor != null) {
+            PieceLayer(drawableId, SolidColor(outlineColor), Modifier.fillMaxSize().scale(1.09f))
+        }
+        PieceLayer(drawableId, brush, Modifier.fillMaxSize())
+    }
+}
+
+@Composable
+private fun PieceLayer(drawableId: Int, brush: Brush, modifier: Modifier) {
     val painter = painterResource(id = drawableId)
     Box(
         modifier = modifier
