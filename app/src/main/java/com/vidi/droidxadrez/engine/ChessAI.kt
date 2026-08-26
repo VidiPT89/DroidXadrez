@@ -91,10 +91,14 @@ object ChessAI {
         return score
     }
 
-    private fun orderMoves(moves: List<Move>): List<Move> {
+    private fun orderMoves(moves: List<Move>, game: ChessGame): List<Move> {
         fun score(m: Move): Int {
             var s = 0
-            if (m.capture) s += 1000
+            if (m.capture) {
+                val victim = if (m.enPassant) PieceType.PAWN else game.board[m.to.r][m.to.c]?.type
+                val victimValue = victim?.value ?: PieceType.PAWN.value
+                s += 10000 + victimValue * 10 - m.piece.type.value
+            }
             if (m.promotion != null) s += 900
             return s
         }
@@ -108,7 +112,7 @@ object ChessAI {
         if (standPat >= beta) return beta
         if (standPat > alpha) alpha = standPat
 
-        val moves = orderMoves(game.allLegalMoves(game.turn).filter { it.capture || it.promotion != null })
+        val moves = orderMoves(game.allLegalMoves(game.turn).filter { it.capture || it.promotion != null }, game)
         for (move in moves) {
             val child = game.clone()
             child.makeMove(move.from, move.to, move.promotion)
@@ -130,7 +134,7 @@ object ChessAI {
         }
         if (System.currentTimeMillis() > deadline) return colorSign * evaluate(game)
 
-        val moves = orderMoves(game.allLegalMoves(game.turn))
+        val moves = orderMoves(game.allLegalMoves(game.turn), game)
         if (moves.isEmpty()) {
             return if (game.isInCheck(game.turn)) -MATE_SCORE - depth else 0
         }
@@ -162,7 +166,7 @@ object ChessAI {
         var scored: List<Pair<Move, Int>> = emptyList()
 
         if (cfg.timeBudgetMs >= 1500) {
-            var currentOrder = orderMoves(rootMoves)
+            var currentOrder = orderMoves(rootMoves, game)
             for (d in 1..cfg.depth) {
                 val results = mutableListOf<Pair<Move, Int>>()
                 for (move in currentOrder) {
@@ -178,7 +182,7 @@ object ChessAI {
                 if (System.currentTimeMillis() > deadline) break
             }
         } else {
-            scored = orderMoves(rootMoves).map { move ->
+            scored = orderMoves(rootMoves, game).map { move ->
                 val child = game.clone()
                 child.makeMove(move.from, move.to, move.promotion)
                 val score = -negamax(child, cfg.depth - 1, Int.MIN_VALUE / 2, Int.MAX_VALUE / 2, -colorSign, cfg.quiescence, deadline)
