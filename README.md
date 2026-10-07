@@ -17,7 +17,7 @@ A versão Android nativa de [Xadrez para web](https://github.com/VidiPT89/Xadrez
 - 🔊 Efeitos sonoros sintetizados em tempo real via `AudioTrack` para lances, capturas, xeque e fim de jogo
 - 🎬 Splash de abertura animado com apresentação da app, que desaparece automaticamente
 - 🖼️ Tabuleiro totalmente adaptável, com destaque de lances legais, última jogada e xeque
-- 🌐 Modo Multijogador — joga online com um amigo através de uma sala com código de 6 caracteres ou link de convite, com chat em tempo real, indicador de presença do adversário e desistência
+- 🌐 Modo Multijogador — joga online com um amigo: Jogo Rápido (sem código), sala com código de 6 caracteres, nome de jogador, chat em tempo real, indicador de presença do adversário e desistência (compatível com a versão web e iOS)
 
 ## 🛠️ Tech Stack
 
@@ -90,6 +90,12 @@ cd DroidXadrez
 ```
 
 Requires Android Studio (Koala or newer) and a device/emulator running Android 8.0 (API 26) or later.
+
+Engine and bot tests (perft on reference positions, draw rules, mate detection):
+
+```bash
+./gradlew testDebugUnitTest
+```
 
 ## 🌐 Multijogador
 

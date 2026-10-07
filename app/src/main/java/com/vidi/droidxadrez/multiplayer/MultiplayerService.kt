@@ -393,6 +393,15 @@ object MultiplayerService {
         )
     }
 
+    /** Marks the room finished after a rules ending (e.g. "checkmate-w", "stalemate"), so a Quick
+     *  Play slot frees up at once instead of waiting for both presences to go stale. */
+    fun finishGame(result: String) {
+        val code = roomCode ?: return
+        db().collection("rooms").document(code).update(
+            mapOf("status" to "finished", "result" to result, "updatedAt" to FieldValue.serverTimestamp())
+        )
+    }
+
     fun leaveRoom() {
         sendHeartbeat(false)
         roomListener?.remove(); roomListener = null

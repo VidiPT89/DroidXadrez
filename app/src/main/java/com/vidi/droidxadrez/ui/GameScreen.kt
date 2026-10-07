@@ -115,7 +115,15 @@ fun GameScreen(vm: GameViewModel, mpVM: MultiplayerViewModel, onBackToMenu: () -
         PromotionDialog(vm)
     }
     if (vm.showResult) {
-        ResultDialog(vm, onRematch = { vm.showResult = false; vm.newGame(vm.mode, vm.botLevel) }, onMenu = { vm.showResult = false; onBackToMenu() })
+        ResultDialog(
+            vm,
+            onRematch = { vm.showResult = false; vm.newGame(vm.mode, vm.botLevel) },
+            onMenu = {
+                vm.showResult = false
+                if (vm.mode == GameMode.MULTIPLAYER) mpVM.leave()
+                onBackToMenu()
+            },
+        )
     }
     if (showResignConfirm) {
         AlertDialog(
@@ -370,7 +378,8 @@ private fun ResultDialog(vm: GameViewModel, onRematch: () -> Unit, onMenu: () ->
                 Text(text, color = Theme.inkDim)
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GhostButton(Loc.t("newGame")) { onRematch() }
+                    // An online match can't be restarted in place — the room is over.
+                    if (vm.mode != GameMode.MULTIPLAYER) GhostButton(Loc.t("newGame")) { onRematch() }
                     GhostButton(Loc.t("backToMenu")) { onMenu() }
                 }
             }

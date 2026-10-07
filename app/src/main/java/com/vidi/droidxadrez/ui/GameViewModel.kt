@@ -147,15 +147,16 @@ class GameViewModel : ViewModel() {
             else -> SoundEngine.playMove()
         }
 
+        // Broadcast before the game-over check, or a mating move would never reach the opponent.
+        if (isLocal && mode == GameMode.MULTIPLAYER) {
+            onLocalMove?.invoke(record)
+        }
         if (game.isGameOver) {
             showResult = true
             return
         }
         if (mode == GameMode.BOT && game.turn == BOT_COLOR) {
             requestBotMove()
-        }
-        if (isLocal && mode == GameMode.MULTIPLAYER) {
-            onLocalMove?.invoke(record)
         }
     }
 

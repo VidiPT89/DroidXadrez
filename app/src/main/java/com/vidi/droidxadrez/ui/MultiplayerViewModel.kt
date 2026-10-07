@@ -7,6 +7,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vidi.droidxadrez.Loc
+import com.vidi.droidxadrez.engine.ChessGame
+import com.vidi.droidxadrez.engine.GameResult
 import com.vidi.droidxadrez.engine.PieceColor
 import com.vidi.droidxadrez.multiplayer.ChatMessage
 import com.vidi.droidxadrez.multiplayer.MultiplayerError
@@ -49,12 +51,19 @@ class MultiplayerViewModel : ViewModel() {
 
     private fun begin(gameVM: GameViewModel) {
         MultiplayerService.onRemoteMove = { from, to, promotion -> gameVM.applyRemoteMove(from, to, promotion) }
-        MultiplayerService.onGameFinished = { result -> gameVM.multiplayerResult = result }
+        MultiplayerService.onGameFinished = { result ->
+            // Checkmate/draw endings are detected by the local engine, which already shows them.
+            if (result.startsWith("resign-")) gameVM.multiplayerResult = result
+        }
         MultiplayerService.onOpponentPresence = { online -> opponentOnline = online }
         MultiplayerService.onOpponentName = { name -> opponentName = name }
         MultiplayerService.onChat = { msg -> chatMessages = chatMessages + msg }
         gameVM.newGame(mode = GameMode.MULTIPLAYER, networkColor = null)
-        gameVM.onLocalMove = { record -> MultiplayerService.sendMove(record.from, record.to, record.promotion) }
+        gameVM.onLocalMove = { record ->
+            MultiplayerService.sendMove(record.from, record.to, record.promotion)
+            // Whoever played the final move records the ending, which also frees a Quick Play slot.
+            endingCode(gameVM.game)?.let { MultiplayerService.finishGame(it) }
+        }
         chatMessages = emptyList()
         opponentOnline = false
         opponentName = ""
@@ -117,6 +126,16 @@ class MultiplayerViewModel : ViewModel() {
                 errorMessage = message(e)
             }
         }
+    }
+
+    /** "checkmate-w", "stalemate", "draw-50"… — the same codes the web version writes. */
+    private fun endingCode(game: ChessGame): String? = when (game.result) {
+        GameResult.CHECKMATE -> "checkmate-" + (game.winner?.code ?: "")
+        GameResult.STALEMATE -> "stalemate"
+        GameResult.DRAW_50 -> "draw-50"
+        GameResult.DRAW_REPETITION -> "draw-repetition"
+        GameResult.DRAW_MATERIAL -> "draw-material"
+        null -> null
     }
 
     /** Records my color and puts my pieces at the bottom of the board — the guest plays Black. */
