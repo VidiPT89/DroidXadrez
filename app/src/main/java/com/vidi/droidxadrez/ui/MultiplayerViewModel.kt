@@ -32,6 +32,8 @@ class MultiplayerViewModel : ViewModel() {
         private set
     var opponentName by mutableStateOf("")
         private set
+    /** Hides the opponent's chat messages for the rest of this room (store rule: block abusive users). */
+    var opponentMuted by mutableStateOf(false)
     /** What the player typed in the lobby (may be blank — the default name is used then). */
     var playerName by mutableStateOf("")
 
@@ -67,6 +69,7 @@ class MultiplayerViewModel : ViewModel() {
         chatMessages = emptyList()
         opponentOnline = false
         opponentName = ""
+        opponentMuted = false
     }
 
     fun createRoom(context: Context, gameVM: GameViewModel, onReady: () -> Unit) {

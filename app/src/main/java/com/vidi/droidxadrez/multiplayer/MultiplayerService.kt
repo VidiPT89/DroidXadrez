@@ -253,7 +253,7 @@ object MultiplayerService {
         lastOppPresence = (if (role == "host") data["guestPresence"] else data["hostPresence"]) as? Map<String, Any>
         // The name rides inside the presence map (the room's security rules reject new top-level
         // fields). Older clients rewrite presence without it, so keep the last name we saw.
-        val oppName = cleanName(lastOppPresence?.get("name") as? String)
+        val oppName = ChatModeration.mask(cleanName(lastOppPresence?.get("name") as? String))
         if (oppName.isNotEmpty() && oppName != opponentName) {
             opponentName = oppName
             onOpponentName?.invoke(oppName)
@@ -321,7 +321,8 @@ object MultiplayerService {
                         if (isStale(d["sentAt"])) return@forEach
                         val uid = d["uid"] as? String ?: return@forEach
                         val text = d["text"] as? String ?: return@forEach
-                        onChat?.invoke(ChatMessage(uid, text, uid == myUid))
+                        val mine = uid == myUid
+                        onChat?.invoke(ChatMessage(uid, if (mine) text else ChatModeration.mask(text), mine))
                     }
                 }
             }

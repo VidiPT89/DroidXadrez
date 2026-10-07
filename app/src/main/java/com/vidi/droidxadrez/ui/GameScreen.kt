@@ -1,5 +1,7 @@
 package com.vidi.droidxadrez.ui
 
+import androidx.compose.ui.platform.LocalContext
+import com.vidi.droidxadrez.multiplayer.ChatModeration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -152,6 +154,8 @@ fun GameScreen(vm: GameViewModel, mpVM: MultiplayerViewModel, onBackToMenu: () -
 @Composable
 private fun ChatCard(mpVM: MultiplayerViewModel) {
     var text by remember { mutableStateOf("") }
+    var showReportConfirm by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -172,7 +176,7 @@ private fun ChatCard(mpVM: MultiplayerViewModel) {
         Column(
             modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp).verticalScroll(rememberScrollState()),
         ) {
-            for (msg in mpVM.chatMessages) {
+            for (msg in mpVM.chatMessages.filter { it.mine || !mpVM.opponentMuted }) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = if (msg.mine) Arrangement.End else Arrangement.Start,
@@ -190,7 +194,39 @@ private fun ChatCard(mpVM: MultiplayerViewModel) {
                 Spacer(Modifier.height(4.dp))
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                Loc.t(if (mpVM.opponentMuted) "chatUnmute" else "chatMute"),
+                fontSize = 12.sp,
+                color = Theme.inkDim,
+                modifier = Modifier.clickable { mpVM.opponentMuted = !mpVM.opponentMuted }.padding(vertical = 6.dp),
+            )
+            Text(
+                Loc.t("chatReport"),
+                fontSize = 12.sp,
+                color = Theme.danger,
+                modifier = Modifier.clickable { showReportConfirm = true }.padding(vertical = 6.dp),
+            )
+        }
+        if (showReportConfirm) {
+            AlertDialog(
+                onDismissRequest = { showReportConfirm = false },
+                text = { Text(Loc.t("chatReportConfirm"), color = Theme.inkDim) },
+                confirmButton = {
+                    GhostButton(Loc.t("chatReport")) {
+                        showReportConfirm = false
+                        mpVM.opponentMuted = true
+                        val theirs = mpVM.chatMessages.filter { !it.mine }.map { it.text }
+                        val intent = ChatModeration.reportIntent(
+                            MultiplayerService.roomCode, mpVM.opponentName.ifEmpty { Loc.t("mpOpponent") }, theirs,
+                        )
+                        runCatching { context.startActivity(intent) }
+                    }
+                },
+                dismissButton = { GhostButton(Loc.t("cancelBtn")) { showReportConfirm = false } },
+                containerColor = Theme.panel,
+            )
+        }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextField(
                 value = text,
