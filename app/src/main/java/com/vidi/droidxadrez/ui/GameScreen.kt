@@ -55,7 +55,9 @@ fun GameScreen(vm: GameViewModel, mpVM: MultiplayerViewModel, onBackToMenu: () -
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        PlayerTag(color = PieceColor.BLACK, vm = vm)
+        // The top tag belongs to whichever color sits at the top of the (possibly flipped) board.
+        val topColor = if (vm.flipped) PieceColor.WHITE else PieceColor.BLACK
+        PlayerTag(color = topColor, vm = vm, mpVM = mpVM)
         Spacer(Modifier.height(10.dp))
 
         ChessBoardView(
@@ -70,7 +72,7 @@ fun GameScreen(vm: GameViewModel, mpVM: MultiplayerViewModel, onBackToMenu: () -
         )
 
         Spacer(Modifier.height(10.dp))
-        PlayerTag(color = PieceColor.WHITE, vm = vm)
+        PlayerTag(color = topColor.opponent, vm = vm, mpVM = mpVM)
         Spacer(Modifier.height(18.dp))
 
         StatusCard(vm)
@@ -152,7 +154,8 @@ private fun ChatCard(mpVM: MultiplayerViewModel) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(Loc.t("chatTitle"), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Theme.inkDim)
             Text(
-                text = if (mpVM.opponentOnline) Loc.t("mpOpponentOnline") else Loc.t("mpOpponentOffline"),
+                text = Loc.t(if (mpVM.opponentOnline) "mpOpponentOnline" else "mpOpponentOffline")
+                    .replace("{name}", mpVM.opponentName.ifEmpty { Loc.t("mpOpponent") }),
                 fontSize = 11.sp,
                 color = if (mpVM.opponentOnline) Color(0xFF4CAF50) else Theme.inkDim,
             )
@@ -231,9 +234,10 @@ private fun MultiplayerResultDialog(result: String, myColor: PieceColor?, onMenu
 }
 
 @Composable
-private fun PlayerTag(color: PieceColor, vm: GameViewModel) {
+private fun PlayerTag(color: PieceColor, vm: GameViewModel, mpVM: MultiplayerViewModel) {
     val active = vm.game.turn == color && !vm.statusText().over
-    val label = if (color == PieceColor.WHITE) Loc.t("whitePlayer") else Loc.t("blackPlayer")
+    val myColor = if (vm.mode == GameMode.MULTIPLAYER) vm.networkColor else null
+    val label = mpVM.playerLabel(color, myColor)
     Text(
         text = label,
         fontSize = 14.sp,

@@ -49,6 +49,19 @@ object MultiplayerService {
     var onOpponentJoined: (() -> Unit)? = null
     var onOpponentPresence: ((Boolean) -> Unit)? = null
     var onGameFinished: ((String) -> Unit)? = null
+    var onOpponentName: ((String) -> Unit)? = null
+
+    const val MAX_NAME_LENGTH = 20
+
+    /** Trims, collapses whitespace and drops control characters; "" when nothing usable is left. */
+    fun cleanName(raw: String?): String =
+        (raw ?: "").filterNot { it.isISOControl() }.replace(Regex("\\s+"), " ").trim().take(MAX_NAME_LENGTH)
+
+    /** My display name, sent inside my presence map. */
+    var myName: String = ""
+        set(value) { field = cleanName(value) }
+    var opponentName: String = ""
+        private set
 
     private var myUid: String? = null
     private var role: String? = null // "host" | "guest"
@@ -86,7 +99,7 @@ object MultiplayerService {
         "hostUid" to hostUid, "hostColor" to "w", "guestUid" to null,
         "status" to "waiting", "result" to null,
         "createdAt" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp(),
-        "hostPresence" to mapOf("online" to true, "lastSeen" to FieldValue.serverTimestamp()),
+        "hostPresence" to presenceValue(true),
         "guestPresence" to mapOf("online" to false, "lastSeen" to FieldValue.serverTimestamp()),
     )
 
@@ -112,7 +125,7 @@ object MultiplayerService {
                     db().collection("rooms").document(code).update(
                         mapOf(
                             "guestUid" to uid, "status" to "active",
-                            "guestPresence" to mapOf("online" to true, "lastSeen" to FieldValue.serverTimestamp()),
+                            "guestPresence" to presenceValue(true),
                             "updatedAt" to FieldValue.serverTimestamp(),
                         )
                     ).await()
@@ -133,6 +146,7 @@ object MultiplayerService {
         appliedPly = -1
         sentPlies.clear()
         finishedNotified = false
+        opponentName = ""
         sawGuest = guestUid != null || role == "guest"
         opponentOnline = false
         lastOppPresence = null
@@ -237,6 +251,13 @@ object MultiplayerService {
         }
         @Suppress("UNCHECKED_CAST")
         lastOppPresence = (if (role == "host") data["guestPresence"] else data["hostPresence"]) as? Map<String, Any>
+        // The name rides inside the presence map (the room's security rules reject new top-level
+        // fields). Older clients rewrite presence without it, so keep the last name we saw.
+        val oppName = cleanName(lastOppPresence?.get("name") as? String)
+        if (oppName.isNotEmpty() && oppName != opponentName) {
+            opponentName = oppName
+            onOpponentName?.invoke(oppName)
+        }
         recomputePresence()
     }
 
@@ -308,11 +329,17 @@ object MultiplayerService {
 
     private fun presenceField() = if (role == "host") "hostPresence" else "guestPresence"
 
+    private fun presenceValue(online: Boolean): Map<String, Any> {
+        val value = mutableMapOf<String, Any>("online" to online, "lastSeen" to FieldValue.serverTimestamp())
+        if (myName.isNotEmpty()) value["name"] = myName
+        return value
+    }
+
     private fun sendHeartbeat(online: Boolean) {
         val code = roomCode ?: return
         db().collection("rooms").document(code).update(
             mapOf(
-                presenceField() to mapOf("online" to online, "lastSeen" to FieldValue.serverTimestamp()),
+                presenceField() to presenceValue(online),
                 "updatedAt" to FieldValue.serverTimestamp(),
             )
         )
@@ -380,6 +407,7 @@ object MultiplayerService {
         sentPlies.clear()
         roomCreatedAtMs = 0
         finishedNotified = false
+        opponentName = ""
         opponentOnline = false
         lastOppPresence = null
         sawGuest = false

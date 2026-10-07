@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ fun MultiplayerLobbyScreen(
     var joinCode by remember { mutableStateOf("") }
     var quickPlayWaiting by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    LaunchedEffect(Unit) { mpVM.loadPlayerName(context) }
 
     Box(modifier = Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
     Column(
@@ -59,6 +61,26 @@ fun MultiplayerLobbyScreen(
     ) {
         Text(Loc.t("mpTitle"), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Theme.ink)
         Spacer(Modifier.height(18.dp))
+
+        if (!mpVM.waitingForOpponent) {
+            Text(Loc.t("mpYourName"), fontSize = 13.sp, color = Theme.inkDim)
+            Spacer(Modifier.height(6.dp))
+            TextField(
+                value = mpVM.playerName,
+                onValueChange = { mpVM.playerName = it.take(MultiplayerService.MAX_NAME_LENGTH) },
+                singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, textAlign = TextAlign.Center),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Theme.bgSoft,
+                    unfocusedContainerColor = Theme.bgSoft,
+                    focusedTextColor = Theme.ink,
+                    unfocusedTextColor = Theme.ink,
+                ),
+                placeholder = { Text(Loc.t("mpNamePlaceholder"), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
+                modifier = Modifier.widthIn(max = 260.dp),
+            )
+            Spacer(Modifier.height(18.dp))
+        }
 
         when {
             mpVM.waitingForOpponent -> {
@@ -104,7 +126,7 @@ fun MultiplayerLobbyScreen(
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     GhostButton(Loc.t("mpJoin"), enabled = joinCode.length == 6, modifier = Modifier.weight(1f)) {
-                        mpVM.joinRoom(joinCode, gameVM, onReady)
+                        mpVM.joinRoom(context, joinCode, gameVM, onReady)
                     }
                     GhostButton(Loc.t("cancelBtn"), modifier = Modifier.weight(1f)) { step = LobbyStep.CHOICE }
                 }
@@ -121,7 +143,7 @@ fun MultiplayerLobbyScreen(
                 }
                 GhostButton(Loc.t("mpQuickPlay"), enabled = MultiplayerService.configured, modifier = Modifier.fillMaxWidth()) {
                     quickPlayWaiting = true
-                    mpVM.quickPlay(gameVM, onReady)
+                    mpVM.quickPlay(context, gameVM, onReady)
                 }
                 Text(
                     Loc.t("mpQuickPlayDesc"),
@@ -133,7 +155,7 @@ fun MultiplayerLobbyScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     GhostButton(Loc.t("mpCreateRoom"), enabled = MultiplayerService.configured, modifier = Modifier.weight(1f)) {
                         quickPlayWaiting = false
-                        mpVM.createRoom(gameVM, onReady)
+                        mpVM.createRoom(context, gameVM, onReady)
                     }
                     GhostButton(Loc.t("mpJoinRoom"), enabled = MultiplayerService.configured, modifier = Modifier.weight(1f)) {
                         joinCode = ""

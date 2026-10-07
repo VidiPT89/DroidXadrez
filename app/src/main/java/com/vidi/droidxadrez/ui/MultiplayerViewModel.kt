@@ -1,5 +1,6 @@
 package com.vidi.droidxadrez.ui
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -27,19 +28,40 @@ class MultiplayerViewModel : ViewModel() {
         private set
     var chatMessages by mutableStateOf<List<ChatMessage>>(emptyList())
         private set
+    var opponentName by mutableStateOf("")
+        private set
+    /** What the player typed in the lobby (may be blank — the default name is used then). */
+    var playerName by mutableStateOf("")
+
+    fun loadPlayerName(context: Context) {
+        playerName = prefs(context).getString(KEY_NAME, "") ?: ""
+    }
+
+    /** Called before any room action: remembers the typed name and hands it to the service. */
+    private fun commitPlayerName(context: Context) {
+        playerName = MultiplayerService.cleanName(playerName)
+        prefs(context).edit().putString(KEY_NAME, playerName).apply()
+        MultiplayerService.myName = playerName.ifEmpty { Loc.t("mpDefaultName") }
+    }
+
+    private fun prefs(context: Context) =
+        context.applicationContext.getSharedPreferences("xadrez_prefs", Context.MODE_PRIVATE)
 
     private fun begin(gameVM: GameViewModel) {
         MultiplayerService.onRemoteMove = { from, to, promotion -> gameVM.applyRemoteMove(from, to, promotion) }
         MultiplayerService.onGameFinished = { result -> gameVM.multiplayerResult = result }
         MultiplayerService.onOpponentPresence = { online -> opponentOnline = online }
+        MultiplayerService.onOpponentName = { name -> opponentName = name }
         MultiplayerService.onChat = { msg -> chatMessages = chatMessages + msg }
         gameVM.newGame(mode = GameMode.MULTIPLAYER, networkColor = null)
         gameVM.onLocalMove = { record -> MultiplayerService.sendMove(record.from, record.to, record.promotion) }
         chatMessages = emptyList()
         opponentOnline = false
+        opponentName = ""
     }
 
-    fun createRoom(gameVM: GameViewModel, onReady: () -> Unit) {
+    fun createRoom(context: Context, gameVM: GameViewModel, onReady: () -> Unit) {
+        commitPlayerName(context)
         begin(gameVM)
         errorMessage = null
         waitingForOpponent = false
@@ -58,7 +80,8 @@ class MultiplayerViewModel : ViewModel() {
         }
     }
 
-    fun joinRoom(code: String, gameVM: GameViewModel, onReady: () -> Unit) {
+    fun joinRoom(context: Context, code: String, gameVM: GameViewModel, onReady: () -> Unit) {
+        commitPlayerName(context)
         begin(gameVM)
         errorMessage = null
         viewModelScope.launch {
@@ -72,7 +95,8 @@ class MultiplayerViewModel : ViewModel() {
         }
     }
 
-    fun quickPlay(gameVM: GameViewModel, onReady: () -> Unit) {
+    fun quickPlay(context: Context, gameVM: GameViewModel, onReady: () -> Unit) {
+        commitPlayerName(context)
         begin(gameVM)
         errorMessage = null
         waitingForOpponent = false
@@ -104,6 +128,17 @@ class MultiplayerViewModel : ViewModel() {
     fun leave() {
         MultiplayerService.leaveRoom()
         waitingForOpponent = false
+    }
+
+    /** Label for a player tag: names in multiplayer (mine marked "(tu)"), colors otherwise. */
+    fun playerLabel(color: PieceColor, myColor: PieceColor?): String = when {
+        myColor == null -> Loc.t(if (color == PieceColor.WHITE) "whitePlayer" else "blackPlayer")
+        color == myColor -> "${MultiplayerService.myName.ifEmpty { Loc.t("mpDefaultName") }} ${Loc.t("mpYouSuffix")}"
+        else -> opponentName.ifEmpty { Loc.t("mpOpponent") }
+    }
+
+    private companion object {
+        const val KEY_NAME = "player_name"
     }
 
     private fun message(e: Exception): String = when (e) {
