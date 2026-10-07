@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vidi.droidxadrez.Loc
+import com.vidi.droidxadrez.engine.PieceColor
 import com.vidi.droidxadrez.multiplayer.ChatMessage
 import com.vidi.droidxadrez.multiplayer.MultiplayerError
 import com.vidi.droidxadrez.multiplayer.MultiplayerService
@@ -49,7 +50,7 @@ class MultiplayerViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 MultiplayerService.createRoom()
-                gameVM.networkColor = MultiplayerService.myColor
+                seat(gameVM)
                 waitingForOpponent = true
             } catch (e: Exception) {
                 errorMessage = message(e)
@@ -63,7 +64,7 @@ class MultiplayerViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 MultiplayerService.joinRoom(code)
-                gameVM.networkColor = MultiplayerService.myColor
+                seat(gameVM)
                 onReady()
             } catch (e: Exception) {
                 errorMessage = message(e)
@@ -82,7 +83,7 @@ class MultiplayerViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val result = MultiplayerService.quickPlay()
-                gameVM.networkColor = MultiplayerService.myColor
+                seat(gameVM)
                 if (result.isHost) {
                     waitingForOpponent = true
                 } else {
@@ -92,6 +93,12 @@ class MultiplayerViewModel : ViewModel() {
                 errorMessage = message(e)
             }
         }
+    }
+
+    /** Records my color and puts my pieces at the bottom of the board — the guest plays Black. */
+    private fun seat(gameVM: GameViewModel) {
+        gameVM.networkColor = MultiplayerService.myColor
+        gameVM.flipped = MultiplayerService.myColor == PieceColor.BLACK
     }
 
     fun leave() {

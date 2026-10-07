@@ -53,6 +53,11 @@ object MultiplayerService {
     private var myUid: String? = null
     private var role: String? = null // "host" | "guest"
     private var appliedPly: Int = -1
+    /** Plies this session wrote — only those are already on the local board. */
+    private val sentPlies = mutableSetOf<Int>()
+    /** Lobby rooms get recycled; docs older than this belong to a previous game. */
+    private var roomCreatedAtMs: Long = 0
+    private var finishedNotified = false
     private var roomListener: ListenerRegistration? = null
     private var movesListener: ListenerRegistration? = null
     private var chatListener: ListenerRegistration? = null
@@ -119,8 +124,15 @@ object MultiplayerService {
             else -> throw MultiplayerError.RoomFull
         }
 
+        // Read back the stored createdAt (a server timestamp) so listeners can skip leftovers from
+        // a previous game in this room.
+        val fresh = runCatching { db().collection("rooms").document(code).get().await() }.getOrNull()
+        roomCreatedAtMs = fresh?.getTimestamp("createdAt")?.toDate()?.time ?: 0L
+
         roomCode = code
         appliedPly = -1
+        sentPlies.clear()
+        finishedNotified = false
         sawGuest = guestUid != null || role == "guest"
         opponentOnline = false
         lastOppPresence = null
@@ -219,7 +231,8 @@ object MultiplayerService {
         }
         val status = data["status"] as? String
         val result = data["result"] as? String
-        if (status == "finished" && result != null) {
+        if (status == "finished" && result != null && !finishedNotified) {
+            finishedNotified = true
             onGameFinished?.invoke(result)
         }
         @Suppress("UNCHECKED_CAST")
@@ -246,16 +259,18 @@ object MultiplayerService {
             .orderBy("ply", Query.Direction.ASCENDING)
             .addSnapshotListener { snap, _ ->
                 snap?.documentChanges?.forEach { change ->
-                    if (change.type == DocumentChange.Type.ADDED) handleMoveDoc(change.document.data)
+                    // MODIFIED too: in a recycled room a new move can overwrite an old game's doc for that ply.
+                    if (change.type != DocumentChange.Type.REMOVED) handleMoveDoc(change.document.data)
                 }
             }
     }
 
     private fun handleMoveDoc(d: Map<String, Any>) {
         val ply = (d["ply"] as? Long)?.toInt() ?: return
-        if (ply <= appliedPly) return
+        if (ply <= appliedPly || isStale(d["playedAt"])) return
         appliedPly = ply
-        if (d["by"] as? String == myUid) return // my own move, applied locally already
+        // My own move from this session is already on the board; after a reconnect it isn't, so replay it.
+        if (ply in sentPlies) return
         @Suppress("UNCHECKED_CAST")
         val fromMap = d["from"] as? Map<String, Any> ?: return
         @Suppress("UNCHECKED_CAST")
@@ -268,6 +283,11 @@ object MultiplayerService {
         onRemoteMove?.invoke(Square(fr, fc), Square(tr, tc), promotion)
     }
 
+    /** True for docs written before the current game began. A null timestamp is a still-pending
+     *  local write, which is by definition current. */
+    private fun isStale(ts: Any?): Boolean =
+        (ts as? com.google.firebase.Timestamp)?.let { it.toDate().time < roomCreatedAtMs } == true
+
     private fun attachChatListener() {
         chatListener?.remove()
         val code = roomCode ?: return
@@ -277,6 +297,7 @@ object MultiplayerService {
                 snap?.documentChanges?.forEach { change ->
                     if (change.type == DocumentChange.Type.ADDED) {
                         val d = change.document.data
+                        if (isStale(d["sentAt"])) return@forEach
                         val uid = d["uid"] as? String ?: return@forEach
                         val text = d["text"] as? String ?: return@forEach
                         onChat?.invoke(ChatMessage(uid, text, uid == myUid))
@@ -314,6 +335,7 @@ object MultiplayerService {
         val uid = myUid ?: return
         val ply = appliedPly + 1
         val plyId = ply.toString().padStart(4, '0')
+        sentPlies.add(ply)
         db().collection("rooms").document(code).collection("moves").document(plyId).set(
             mapOf(
                 "ply" to ply,
@@ -355,6 +377,9 @@ object MultiplayerService {
         role = null
         myColor = null
         appliedPly = -1
+        sentPlies.clear()
+        roomCreatedAtMs = 0
+        finishedNotified = false
         opponentOnline = false
         lastOppPresence = null
         sawGuest = false

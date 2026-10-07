@@ -75,6 +75,7 @@ class GameViewModel : ViewModel() {
         onLocalMove = null
         requestToken = UUID.randomUUID()
         game = ChessGame()
+        flipped = networkColor == PieceColor.BLACK
         pieces = PieceInstance.fresh(game.board)
         selected = null
         legalTargets = emptyList()

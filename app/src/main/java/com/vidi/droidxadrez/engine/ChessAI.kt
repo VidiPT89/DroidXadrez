@@ -176,10 +176,15 @@ object ChessAI {
                     results.add(move to score)
                     if (System.currentTimeMillis() > deadline) break
                 }
-                val sorted = results.sortedByDescending { it.second }
-                currentOrder = sorted.map { it.first }
-                scored = sorted
-                if (System.currentTimeMillis() > deadline) break
+                // An iteration cut short by the deadline holds truncated (unreliable) scores and is
+                // missing moves — keep the last completed depth instead, unless there is nothing else yet.
+                val complete = results.size == currentOrder.size && System.currentTimeMillis() <= deadline
+                if (complete || scored.isEmpty()) {
+                    val sorted = results.sortedByDescending { it.second }
+                    currentOrder = sorted.map { it.first }
+                    scored = sorted
+                }
+                if (!complete) break
             }
         } else {
             scored = orderMoves(rootMoves, game).map { move ->

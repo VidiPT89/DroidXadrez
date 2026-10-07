@@ -48,7 +48,7 @@ private val STRINGS: Map<AppLanguage, Map<String, String>> = mapOf(
         "resultCheckmateTitle" to "Xeque-mate!",
         "resultCheckmateWhite" to "As Brancas vencem.",
         "resultCheckmateBlack" to "As Pretas vencem.",
-        "resultStalemateTitle" to "Tabuada por Afogamento",
+        "resultStalemateTitle" to "Empate por Afogamento",
         "resultStalemateText" to "Nenhum jogador tem lances legais. O jogo termina empatado.",
         "resultDraw50Title" to "Empate",
         "resultDraw50Text" to "50 lances sem capturas nem movimento de peão.",

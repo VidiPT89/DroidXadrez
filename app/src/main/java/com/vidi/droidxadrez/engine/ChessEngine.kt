@@ -108,8 +108,18 @@ class ChessGame {
         }
         sb.append("|").append(if (castling.wK) 1 else 0).append(if (castling.wQ) 1 else 0)
             .append(if (castling.bK) 1 else 0).append(if (castling.bQ) 1 else 0)
-        sb.append("|").append(enPassant?.name ?: "-")
+        sb.append("|").append(if (enPassantCapturable()) enPassant!!.name else "-")
         return sb.toString()
+    }
+
+    /** The en passant square only distinguishes positions (FIDE repetition rule) when a pawn of the
+     *  side to move actually stands ready to capture onto it. */
+    private fun enPassantCapturable(): Boolean {
+        val ep = enPassant ?: return false
+        val pawnRow = if (turn == PieceColor.WHITE) ep.r + 1 else ep.r - 1
+        return listOf(ep.c - 1, ep.c + 1).any { cc ->
+            Square(pawnRow, cc).inBounds() && board[pawnRow][cc]?.let { it.type == PieceType.PAWN && it.color == turn } == true
+        }
     }
 
     private fun recordPosition() {
@@ -452,14 +462,16 @@ class ChessGame {
     }
 
     private fun isInsufficientMaterial(): Boolean {
-        val pieces = mutableListOf<Piece>()
-        for (r in 0..7) for (c in 0..7) board[r][c]?.let { pieces.add(it) }
-        if (pieces.size > 4) return false
-        val nonKings = pieces.filter { it.type != PieceType.KING }
-        if (nonKings.isEmpty()) return true
-        if (nonKings.size == 1 && (nonKings[0].type == PieceType.BISHOP || nonKings[0].type == PieceType.KNIGHT)) return true
-        if (nonKings.size == 2 && nonKings.all { it.type == PieceType.BISHOP }) return true
-        return false
+        val minors = mutableListOf<Pair<PieceType, Int>>() // piece type to square color
+        for (r in 0..7) for (c in 0..7) {
+            val p = board[r][c] ?: continue
+            if (p.type == PieceType.KING) continue
+            if (p.type != PieceType.BISHOP && p.type != PieceType.KNIGHT) return false
+            minors.add(p.type to (r + c) % 2)
+        }
+        if (minors.size <= 1) return true // K vs K, or K + single minor vs K
+        // Any number of bishops, all on the same square color, can never deliver mate.
+        return minors.all { it.first == PieceType.BISHOP && it.second == minors[0].second }
     }
 
     fun gameStatusText(): GameStatus = when (result) {

@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.vidi.droidxadrez.R
 import com.vidi.droidxadrez.Theme
@@ -117,7 +118,7 @@ private fun AnimatedPieceView(piece: PieceInstance, cellSize: Dp, flipped: Boole
 
     Box(
         modifier = Modifier
-            .offset(x = offsetX, y = offsetY)
+            .offset { IntOffset(offsetX.roundToPx(), offsetY.roundToPx()) }
             .size(cellSize),
         contentAlignment = Alignment.Center,
     ) {
